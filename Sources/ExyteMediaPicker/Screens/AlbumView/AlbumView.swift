@@ -1,6 +1,11 @@
 //
 //  Created by Alex.M on 27.05.2022.
 //
+//  FIX: Fullscreen viewer stuck in top-left (e.g. iPhone 17 Pro Max).
+//  Use fullScreenCover instead of AnchoredPopup so the system presents the viewer correctly.
+//  Apply to: https://github.com/JustinMondal/MediaPicker
+//  Path: Sources/ExyteMediaPicker/Screens/AlbumView/AlbumView.swift
+//
 
 public enum LiveCameraCellStyle {
     case none
@@ -9,7 +14,6 @@ public enum LiveCameraCellStyle {
 }
 
 import SwiftUI
-import AnchoredPopup
 
 struct AlbumView: View {
 
@@ -35,6 +39,21 @@ struct AlbumView: View {
 
     var body: some View {
         content
+            .fullScreenCover(isPresented: Binding(
+                get: { fullscreenItem != nil },
+                set: { if !$0 { fullscreenItem = nil } }
+            )) {
+                FullscreenContainer(
+                    currentFullscreenMedia: $currentFullscreenMedia,
+                    selection: $fullscreenItem,
+                    animationID: "fullscreen_cover",
+                    assetMediaModels: viewModel.assetMediaModels,
+                    selectionParamsHolder: selectionParamsHolder,
+                    dismiss: dismiss,
+                    onCloseFullscreen: { fullscreenItem = nil }
+                )
+                .environmentObject(selectionService)
+            }
             .onAppear {
                 viewModel.reload()
             }
@@ -119,39 +138,16 @@ struct AlbumView: View {
             if keyboardHeightHelper.keyboardDisplayed {
                 dismissKeyboard()
             }
-            if !selectionParamsHolder.showFullscreenPreview { // select immediately
+            if !selectionParamsHolder.showFullscreenPreview {
                 selectionService.onSelect(assetMediaModel: assetMediaModel)
                 if selectionService.mediaSelectionLimit == 1 {
                     dismiss()
                 }
-            }
-            else if fullscreenItem == nil {
+            } else if fullscreenItem == nil {
                 fullscreenItem = assetMediaModel.id
             }
         } label: {
-            let id = "fullscreen_photo_\(index)"
             MediaCell(viewModel: MediaViewModel(assetMediaModel: assetMediaModel), size: size)
-                .applyIf(selectionParamsHolder.showFullscreenPreview) {
-                    $0.useAsPopupAnchor(id: id) {
-                        FullscreenContainer(
-                            currentFullscreenMedia: $currentFullscreenMedia,
-                            selection: $fullscreenItem,
-                            animationID: id,
-                            assetMediaModels: viewModel.assetMediaModels,
-                            selectionParamsHolder: selectionParamsHolder,
-                            dismiss: dismiss
-                        )
-                        .environmentObject(selectionService)
-                    } customize: {
-                        $0.closeOnTap(false)
-                            .animation(.easeIn(duration: 0.2))
-                    }
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            fullscreenItem = assetMediaModel.id
-                        }
-                    )
-                }
         }
         .buttonStyle(MediaButtonStyle())
         .contentShape(Rectangle())
