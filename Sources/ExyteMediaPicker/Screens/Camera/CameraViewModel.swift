@@ -277,19 +277,19 @@ final actor CameraViewModel: NSObject, ObservableObject {
 
         return session.devices.first
     }
-}
 
-private static func mirrored(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
-    switch orientation {
-    case .up: return .upMirrored
-    case .down: return .downMirrored
-    case .left: return .leftMirrored
-    case .right: return .rightMirrored
-    case .upMirrored: return .up
-    case .downMirrored: return .down
-    case .leftMirrored: return .left
-    case .rightMirrored: return .right
-    @unknown default: return orientation
+    private static func mirrored(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
+        switch orientation {
+        case .up: return .upMirrored
+        case .down: return .downMirrored
+        case .left: return .leftMirrored
+        case .right: return .rightMirrored
+        case .upMirrored: return .up
+        case .downMirrored: return .down
+        case .leftMirrored: return .left
+        case .rightMirrored: return .right
+        @unknown default: return orientation
+        }
     }
 }
 
