@@ -60,7 +60,6 @@ struct FullscreenContainer: View {
         .frame(width: onCloseFullscreen == nil ? screenSize.width : nil,
                height: onCloseFullscreen == nil ? screenSize.height : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaPadding(.top, UIApplication.safeArea.top)
         .background {
             theme.main.fullscreenPhotoBackground
                 .ignoresSafeArea()
@@ -159,6 +158,7 @@ struct FullscreenContainer: View {
                 }
             }
         }
+        .padding(.top, UIApplication.safeArea.top)
         .foregroundStyle(theme.selection.fullscreenSelectedBackground)
     }
 }
