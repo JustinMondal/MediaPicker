@@ -68,11 +68,18 @@ final actor CameraViewModel: NSObject, ObservableObject {
     }
 
     func takePhoto() async {
+        let orientation = motionManager.orientation
+        lastPhotoActualOrientation = orientation
+    
+        if let connection = photoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
+            let angle = videoRotationAngle(for: orientation)
+            connection.videoRotationAngle = Int32(angle)
+        }
+    
         let settings = AVCapturePhotoSettings()
         settings.flashMode = await flashEnabled ? .on : .off
         photoOutput.capturePhoto(with: settings, delegate: self)
-        lastPhotoActualOrientation = motionManager.orientation
-
+    
         withAnimation(.linear(duration: 0.1)) {
             DispatchQueue.main.async {
                 self.snapOverlay = true
@@ -217,6 +224,17 @@ final actor CameraViewModel: NSObject, ObservableObject {
 
         updateOutputOrientation(photoOutput)
         updateOutputOrientation(videoOutput)
+    }
+
+    /// Map device orientation to AVCaptureConnection videoRotationAngle (degrees).
+    private func videoRotationAngle(for orientation: UIDeviceOrientation) -> Int {
+        switch orientation {
+        case .portrait: return 90
+        case .portraitUpsideDown: return 270
+        case .landscapeRight: return 0
+        case .landscapeLeft: return 180
+        default: return 90
+        }
     }
 
     private func updateOutputOrientation(_ output: AVCaptureOutput) {
