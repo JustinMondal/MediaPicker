@@ -1,6 +1,10 @@
 //
 //  Created by Alex.M on 09.06.2022.
 //
+//  FIX: Fullscreen viewer stuck in top-left on iPhone 17 Pro Max (and other large devices).
+//  Apply this file to: https://github.com/JustinMondal/MediaPicker
+//  Path: Sources/ExyteMediaPicker/Screens/Fullscreen/FullscreenContainer.swift
+//
 
 import Foundation
 import SwiftUI
@@ -31,6 +35,19 @@ struct FullscreenContainer: View {
         return selectionService.index(of: selectedMediaModel)
     }
 
+    /// Use explicit screen size so the fullscreen viewer fills the screen on all devices (e.g. iPhone 17 Pro Max).
+    /// AnchoredPopup can propose a wrong size on some screen sizes; this forces correct layout.
+    private var screenSize: CGSize {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })?
+            .windows
+            .first(where: { $0.isKeyWindow }) else {
+            return UIScreen.main.bounds.size
+        }
+        return window.bounds.size
+    }
+
     var body: some View {
         VStack {
             controlsOverlay
@@ -38,6 +55,7 @@ struct FullscreenContainer: View {
                 contentView(g.size)
             }
         }
+        .frame(width: screenSize.width, height: screenSize.height)
         .safeAreaPadding(.top, UIApplication.safeArea.top)
         .background {
             theme.main.fullscreenPhotoBackground
