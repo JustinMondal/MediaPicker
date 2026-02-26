@@ -312,16 +312,6 @@ final actor CameraViewModel: NSObject, ObservableObject {
         }
     }
 
-    /// Remove mirror from orientation. Use for back camera when metadata incorrectly has mirror.
-    private static func unMirrored(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
-        switch orientation {
-        case .upMirrored: return .up
-        case .downMirrored: return .down
-        case .leftMirrored: return .left
-        case .rightMirrored: return .right
-        default: return orientation
-        }
-    }
 }
 
 extension CameraViewModel: AVCapturePhotoCaptureDelegate {
@@ -333,14 +323,9 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            // Front camera: metadata + mirror for correct selfie.
-            // Back camera: metadata but strip mirror so the photo isn't mirrored.
-            var photoOrientation = Self.uiImageOrientation(from: photo)
-            if await lastPhotoWasFrontCamera {
-                photoOrientation = Self.mirrored(photoOrientation)
-            } else {
-                photoOrientation = Self.unMirrored(photoOrientation)
-            }
+            // We set videoRotationAngle on the connection before capture, so the buffer is already
+            // in portrait. Use fixed orientation: back = .up, front = .upMirrored (no metadata).
+            let photoOrientation: UIImage.Orientation = await lastPhotoWasFrontCamera ? .upMirrored : .up
 
             guard let data = UIImage(
                 cgImage: cgImage,
