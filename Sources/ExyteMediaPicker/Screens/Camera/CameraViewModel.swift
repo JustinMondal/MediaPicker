@@ -1,12 +1,13 @@
 //
 //  CameraViewModel.swift
-//  
+//
 //
 //  Created by Alexandra Afonasova on 18.10.2022.
 //
 
 import Foundation
 import AVFoundation
+import ImageIO
 import UIKit
 import SwiftUI
 import Combine
@@ -72,16 +73,16 @@ final actor CameraViewModel: NSObject, ObservableObject {
         let orientation = motionManager.orientation
         lastPhotoActualOrientation = orientation
         lastPhotoWasFrontCamera = (captureDevice?.position == .front)
-    
+
         if let connection = photoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
             let angle = videoRotationAngle(for: orientation)
             connection.videoRotationAngle = CGFloat(angle)
         }
-    
+
         let settings = AVCapturePhotoSettings()
         settings.flashMode = await flashEnabled ? .on : .off
         photoOutput.capturePhoto(with: settings, delegate: self)
-    
+
         withAnimation(.linear(duration: 0.1)) {
             DispatchQueue.main.async {
                 self.snapOverlay = true
@@ -278,6 +279,25 @@ final actor CameraViewModel: NSObject, ObservableObject {
         return session.devices.first
     }
 
+    /// Map CGImagePropertyOrientation (from photo metadata) to UIImage.Orientation.
+    /// Using the capture's metadata avoids double-rotation (we already set videoRotationAngle at capture).
+    private static func uiImageOrientation(from photo: AVCapturePhoto) -> UIImage.Orientation {
+        let key = kCGImagePropertyOrientation as String
+        guard let value = photo.metadata[key] as? NSNumber else { return .up }
+        let raw = value.uintValue
+        switch raw {
+        case 1: return .up
+        case 2: return .down
+        case 3: return .left
+        case 4: return .right
+        case 5: return .upMirrored
+        case 6: return .downMirrored
+        case 7: return .leftMirrored
+        case 8: return .rightMirrored
+        default: return .up
+        }
+    }
+
     private static func mirrored(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
         switch orientation {
         case .up: return .upMirrored
@@ -302,22 +322,19 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            let baseOrientation: UIImage.Orientation
-            if let orientation = await lastPhotoActualOrientation {
-                baseOrientation = UIImage.Orientation(orientation)
-            } else {
-                baseOrientation = UIImage.Orientation.default
+            // Use orientation from photo metadata to avoid double-rotation (we set videoRotationAngle at capture).
+            // For front camera, mirror so the selfie looks correct.
+            var photoOrientation = Self.uiImageOrientation(from: photo)
+            if await lastPhotoWasFrontCamera {
+                photoOrientation = Self.mirrored(photoOrientation)
             }
-            let photoOrientation: UIImage.Orientation = await lastPhotoWasFrontCamera
-                ? Self.mirrored(baseOrientation)
-                : baseOrientation
-        
+
             guard let data = UIImage(
                 cgImage: cgImage,
                 scale: 1,
                 orientation: photoOrientation
             ).jpegData(compressionQuality: 0.8) else { return }
-        
+
             await setCapturedPhoto(FileManager.storeToTempDir(data: data))
         }
     }
