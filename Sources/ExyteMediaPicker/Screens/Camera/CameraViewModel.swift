@@ -73,7 +73,7 @@ final actor CameraViewModel: NSObject, ObservableObject {
     
         if let connection = photoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
             let angle = videoRotationAngle(for: orientation)
-            connection.videoRotationAngle = Int32(angle)
+            connection.videoRotationAngle = CGFloat(angle)
         }
     
         let settings = AVCapturePhotoSettings()
