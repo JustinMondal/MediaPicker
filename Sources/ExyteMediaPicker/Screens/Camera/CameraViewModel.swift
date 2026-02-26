@@ -275,6 +275,20 @@ final actor CameraViewModel: NSObject, ObservableObject {
         }
     }
 
+    /// Rotate 180°. Used for front camera so selfie is right-side up.
+    private static func rotated180(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
+        switch orientation {
+        case .up: return .down
+        case .down: return .up
+        case .left: return .right
+        case .right: return .left
+        case .upMirrored: return .downMirrored
+        case .downMirrored: return .upMirrored
+        case .leftMirrored: return .rightMirrored
+        case .rightMirrored: return .leftMirrored
+        @unknown default: return orientation
+        }
+    }
 }
 
 extension CameraViewModel: AVCapturePhotoCaptureDelegate {
@@ -286,8 +300,8 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            // Match original exyte/MediaPicker: no videoRotationAngle before capture; use device
-            // orientation in delegate (UIImage.Orientation(UIDeviceOrientation)). Front camera only: mirror.
+            // Back camera: original exyte logic — device orientation only.
+            // Front camera: same base orientation, then 180° flip (right-side up) + mirror (selfie).
             var photoOrientation: UIImage.Orientation
             if let orientation = await lastPhotoActualOrientation {
                 photoOrientation = UIImage.Orientation(orientation)
@@ -295,6 +309,7 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
                 photoOrientation = .default
             }
             if await lastPhotoWasFrontCamera {
+                photoOrientation = Self.rotated180(photoOrientation)
                 photoOrientation = Self.mirrored(photoOrientation)
             }
 
