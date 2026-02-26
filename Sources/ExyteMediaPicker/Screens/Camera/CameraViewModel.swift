@@ -37,6 +37,7 @@ final actor CameraViewModel: NSObject, ObservableObject {
     private let videoOutput = AVCaptureMovieFileOutput()
     private let motionManager = MotionManager()
     private var captureDevice: CaptureDevice?
+    private var lastPhotoWasFrontCamera: Bool = false
     private var lastPhotoActualOrientation: UIDeviceOrientation?
 
     private let minScale: CGFloat = 1
@@ -70,6 +71,7 @@ final actor CameraViewModel: NSObject, ObservableObject {
     func takePhoto() async {
         let orientation = motionManager.orientation
         lastPhotoActualOrientation = orientation
+        lastPhotoWasFrontCamera = (captureDevice?.position == .front)
     
         if let connection = photoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
             let angle = videoRotationAngle(for: orientation)
