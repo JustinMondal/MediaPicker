@@ -322,11 +322,14 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            // Use orientation from photo metadata to avoid double-rotation (we set videoRotationAngle at capture).
-            // For front camera, mirror so the selfie looks correct.
-            var photoOrientation = Self.uiImageOrientation(from: photo)
+            // Back camera: use orientation from photo metadata (avoids double-rotation with videoRotationAngle).
+            // Front camera: videoRotationAngle already rotates the buffer; metadata can double-rotate or be wrong.
+            // Use .up (no extra rotation) + mirror so the selfie is upright and mirrored.
+            let photoOrientation: UIImage.Orientation
             if await lastPhotoWasFrontCamera {
-                photoOrientation = Self.mirrored(photoOrientation)
+                photoOrientation = .upMirrored
+            } else {
+                photoOrientation = Self.uiImageOrientation(from: photo)
             }
 
             guard let data = UIImage(
