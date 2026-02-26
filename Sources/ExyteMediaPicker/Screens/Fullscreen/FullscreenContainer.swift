@@ -23,6 +23,8 @@ struct FullscreenContainer: View {
     let assetMediaModels: [AssetMediaModel]
     var selectionParamsHolder: SelectionParamsHolder
     var dismiss: ()->()
+    /// When non-nil, fullscreen is presented via fullScreenCover; close uses this instead of AnchoredPopup (fixes top-left bug on iPhone 17 Pro Max etc.).
+    var onCloseFullscreen: (() -> Void)? = nil
 
     private var selectedMediaModel: AssetMediaModel? {
         assetMediaModels.first { $0.id == selection }
@@ -55,7 +57,9 @@ struct FullscreenContainer: View {
                 contentView(g.size)
             }
         }
-        .frame(width: screenSize.width, height: screenSize.height)
+        .frame(width: onCloseFullscreen == nil ? screenSize.width : nil,
+               height: onCloseFullscreen == nil ? screenSize.height : nil)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaPadding(.top, UIApplication.safeArea.top)
         .background {
             theme.main.fullscreenPhotoBackground
@@ -124,8 +128,12 @@ struct FullscreenContainer: View {
                 .padding(20, 16)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    selection = nil
-                    AnchoredPopup.launchShrinkingAnimation(id: animationID)
+                    if let close = onCloseFullscreen {
+                        close()
+                    } else {
+                        selection = nil
+                        AnchoredPopup.launchShrinkingAnimation(id: animationID)
+                    }
                 }
 
             Spacer()
@@ -133,7 +141,11 @@ struct FullscreenContainer: View {
             if let selectedMediaModel = selectedMediaModel {
                 if selectionParamsHolder.selectionLimit == 1 {
                     Button("Select") {
-                        AnchoredPopup.launchShrinkingAnimation(id: animationID)
+                        if let close = onCloseFullscreen {
+                            close()
+                        } else {
+                            AnchoredPopup.launchShrinkingAnimation(id: animationID)
+                        }
                         selectionService.onSelect(assetMediaModel: selectedMediaModel)
                         dismiss()
                     }
@@ -142,7 +154,7 @@ struct FullscreenContainer: View {
                     SelectionIndicatorView(index: selectionServiceIndex, isFullscreen: true, canSelect: selectionService.canSelect(assetMediaModel: selectedMediaModel), selectionParamsHolder: selectionParamsHolder)
                         .padding(.horizontal, 20)
                         .onTapGesture {
-                            selectionService.onSelect(assetMediaModel: selectedMediaModel) // for video selection, since tap on video is toggle play
+                            selectionService.onSelect(assetMediaModel: selectedMediaModel)
                         }
                 }
             }
