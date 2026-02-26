@@ -100,7 +100,7 @@ public struct MediaPicker<AlbumSelectionContent: View, CameraSelectionContent: V
                     cameraContainer
                 case .cameraSelection:
                     cameraSelectionContainer
-                }
+            }
         }
         .background(theme.main.pickerBackground.ignoresSafeArea())
         .environmentObject(selectionService)
@@ -117,7 +117,7 @@ public struct MediaPicker<AlbumSelectionContent: View, CameraSelectionContent: V
 
             selectionService.onChange = onChange
             selectionService.mediaSelectionLimit = selectionParamsHolder.selectionLimit
-            
+
             cameraSelectionService.onChange = onChange
             cameraSelectionService.mediaSelectionLimit = selectionParamsHolder.selectionLimit
 
@@ -137,7 +137,7 @@ public struct MediaPicker<AlbumSelectionContent: View, CameraSelectionContent: V
         .onChange(of: viewModel.internalPickerMode) { _ , newValue in
             internalPickerMode = newValue
         }
-        .onChange(of: currentFullscreenMedia) { 
+        .onChange(of: currentFullscreenMedia) {
             _currentFullscreenMediaBinding.wrappedValue = currentFullscreenMedia
         }
         .onAppear {
@@ -170,7 +170,17 @@ public struct MediaPicker<AlbumSelectionContent: View, CameraSelectionContent: V
             if let cameraSelectionBuilder = cameraSelectionBuilder {
                 cameraSelectionBuilder(
                     { viewModel.setPickerMode(.camera) }, // add more
-                    { viewModel.onCancelCameraSelection(cameraSelectionService.hasSelected) }, // cancel
+                    {
+                        // When host provides a close callback (e.g. Chat), X should close the picker immediately.
+                        if let close = didPressCancelCamera {
+                            cameraSelectionService.removeAll()
+                            viewModel.setPickerMode(.photos)
+                            pickerMode?.wrappedValue = .photos
+                            close()
+                        } else {
+                            viewModel.onCancelCameraSelection(cameraSelectionService.hasSelected)
+                        }
+                    },
                     CameraSelectionView(selectionParamsHolder: selectionParamsHolder)
                 )
             } else {
@@ -360,7 +370,7 @@ public extension MediaPicker {
         mediaPicker.mediaPickerParamsHolder = params
         return mediaPicker
     }
-    
+
     func setSelectionParameters(_ params: SelectionParamsHolder?) -> MediaPicker {
         guard let params = params else {
             return self
