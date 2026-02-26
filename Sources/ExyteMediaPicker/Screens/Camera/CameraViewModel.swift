@@ -312,20 +312,6 @@ final actor CameraViewModel: NSObject, ObservableObject {
         }
     }
 
-    /// Rotate orientation 90° clockwise (corrects back-camera CCW flip on some devices).
-    private static func rotated90CW(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
-        switch orientation {
-        case .up: return .right
-        case .right: return .down
-        case .down: return .left
-        case .left: return .up
-        case .upMirrored: return .rightMirrored
-        case .rightMirrored: return .downMirrored
-        case .downMirrored: return .leftMirrored
-        case .leftMirrored: return .upMirrored
-        @unknown default: return orientation
-        }
-    }
 }
 
 extension CameraViewModel: AVCapturePhotoCaptureDelegate {
@@ -337,13 +323,11 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            // Front camera: metadata + mirror (was correct before; keep it).
-            // Back camera: metadata gives CCW-flipped result on some devices; apply 90° CW to correct.
+            // Front camera: metadata + mirror for correct selfie.
+            // Back camera: metadata only (no mirror, no extra rotation).
             var photoOrientation = Self.uiImageOrientation(from: photo)
             if await lastPhotoWasFrontCamera {
                 photoOrientation = Self.mirrored(photoOrientation)
-            } else {
-                photoOrientation = Self.rotated90CW(photoOrientation)
             }
 
             guard let data = UIImage(
