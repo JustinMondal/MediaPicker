@@ -286,12 +286,7 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            let photoOrientation: UIImage.Orientation
-            if let orientation = await lastPhotoActualOrientation {
-                photoOrientation = UIImage.Orientation(orientation)
-            } else {
-                photoOrientation = UIImage.Orientation.default
-            }
+            let photoOrientation: UIImage.Orientation = .up
 
             guard let data = UIImage(
                 cgImage: cgImage,
