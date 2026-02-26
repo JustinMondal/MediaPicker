@@ -7,7 +7,6 @@
 
 import Foundation
 import AVFoundation
-import ImageIO
 import UIKit
 import SwiftUI
 import Combine
@@ -70,14 +69,8 @@ final actor CameraViewModel: NSObject, ObservableObject {
     }
 
     func takePhoto() async {
-        let orientation = motionManager.orientation
-        lastPhotoActualOrientation = orientation
+        lastPhotoActualOrientation = motionManager.orientation
         lastPhotoWasFrontCamera = (captureDevice?.position == .front)
-
-        if let connection = photoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(0) {
-            let angle = videoRotationAngle(for: orientation)
-            connection.videoRotationAngle = CGFloat(angle)
-        }
 
         let settings = AVCapturePhotoSettings()
         settings.flashMode = await flashEnabled ? .on : .off
@@ -229,17 +222,6 @@ final actor CameraViewModel: NSObject, ObservableObject {
         updateOutputOrientation(videoOutput)
     }
 
-    /// Map device orientation to AVCaptureConnection videoRotationAngle (degrees).
-    private func videoRotationAngle(for orientation: UIDeviceOrientation) -> Int {
-        switch orientation {
-        case .portrait: return 90
-        case .portraitUpsideDown: return 270
-        case .landscapeRight: return 0
-        case .landscapeLeft: return 180
-        default: return 90
-        }
-    }
-
     private func updateOutputOrientation(_ output: AVCaptureOutput) {
         guard let connection = output.connection(with: .video) else { return }
         if connection.isVideoRotationAngleSupported(0) {
@@ -279,25 +261,6 @@ final actor CameraViewModel: NSObject, ObservableObject {
         return session.devices.first
     }
 
-    /// Map CGImagePropertyOrientation (from photo metadata) to UIImage.Orientation.
-    /// Using the capture's metadata avoids double-rotation (we already set videoRotationAngle at capture).
-    private static func uiImageOrientation(from photo: AVCapturePhoto) -> UIImage.Orientation {
-        let key = kCGImagePropertyOrientation as String
-        guard let value = photo.metadata[key] as? NSNumber else { return .up }
-        let raw = value.uintValue
-        switch raw {
-        case 1: return .up
-        case 2: return .down
-        case 3: return .left
-        case 4: return .right
-        case 5: return .upMirrored
-        case 6: return .downMirrored
-        case 7: return .leftMirrored
-        case 8: return .rightMirrored
-        default: return .up
-        }
-    }
-
     private static func mirrored(_ orientation: UIImage.Orientation) -> UIImage.Orientation {
         switch orientation {
         case .up: return .upMirrored
@@ -323,9 +286,17 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         guard let cgImage = photo.cgImageRepresentation() else { return }
 
         Task {
-            // We set videoRotationAngle on the connection before capture, so the buffer is already
-            // in portrait. Use fixed orientation: back = .up, front = .upMirrored (no metadata).
-            let photoOrientation: UIImage.Orientation = await lastPhotoWasFrontCamera ? .upMirrored : .up
+            // Match original exyte/MediaPicker: no videoRotationAngle before capture; use device
+            // orientation in delegate (UIImage.Orientation(UIDeviceOrientation)). Front camera only: mirror.
+            var photoOrientation: UIImage.Orientation
+            if let orientation = await lastPhotoActualOrientation {
+                photoOrientation = UIImage.Orientation(orientation)
+            } else {
+                photoOrientation = .default
+            }
+            if await lastPhotoWasFrontCamera {
+                photoOrientation = Self.mirrored(photoOrientation)
+            }
 
             guard let data = UIImage(
                 cgImage: cgImage,
