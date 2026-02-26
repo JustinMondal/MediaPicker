@@ -64,6 +64,7 @@ struct FullscreenContainer: View {
             theme.main.fullscreenPhotoBackground
                 .ignoresSafeArea()
         }
+        .ignoresSafeArea(edges: .top) // when in fullScreenCover, avoid double top inset and fill under status bar
         .onAppear {
             if let selectedMediaModel {
                 currentFullscreenMedia = Media(source: selectedMediaModel)
